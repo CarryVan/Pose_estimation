@@ -26,12 +26,9 @@
 1. `client.js`
     - Web front side
     - 유저 카메라에 연결 요청,  서버와 webRTC 적용
-#
-# 
-#
+       
+         
 💡 **WebRTC 동작 순서**
-#  
-#
 #  
 -  웹 브라우저가 서버에 `client.js`와  `index.html` 요청.
 -  Start 버튼을 누르면 `RTCPeerConnection` 객체를 생성, 그리고 그 객체에 여러 event listener들을 붙힘.
@@ -40,12 +37,10 @@
 -  Stream 전송 
     - Signaling 작업이 끝나고 WebRTC connection이 완료되면 바로 video transmission 시작.
     - 모든 stream에 addTrack() 함수가 붙혀져 있기 때문에 서버에서 이걸 바로 읽고 이에 대해 원하는 작업이 가능.
-# 
-# 
-#
+       
+      
+
 💡 **현재 프로젝트 WebRTC 구조**
-#
-#
 #
 - 기존 WebRTC는 peer2peer, 즉 브라우저/브라우저 간의 직접적인 연결을 적용하고자함.
 - 다만 우리 프로젝트에서는 브라우저간의 연결은 할 필요가 없다.
