@@ -1,7 +1,7 @@
 # README.md
 
 💡 **실행 방법**
-
+#
 1. python server.py로 서버 실행
     
     ```python
@@ -15,7 +15,7 @@
 <br>
 
 💡 **코드 구조**
-
+#
 1. `pose_modeule.py`
     - `draw_count`
         - pose_estimation 적용, 그리고 classification 학습모델 적용후 count
