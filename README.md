@@ -12,6 +12,7 @@
 2. chrome 127.0.0.1:8080 접속
 3. 원하는 부분 check하고 start 클릭 
   
+<br>
 
 💡 **코드 구조**
 
@@ -27,7 +28,7 @@
     - Web front side
     - 유저 카메라에 연결 요청,  서버와 webRTC 적용
        
-<br><br>
+<br>
 
 💡 **WebRTC 동작 순서**
 #  
@@ -38,6 +39,7 @@
 -  Stream 전송 
     - Signaling 작업이 끝나고 WebRTC connection이 완료되면 바로 video transmission 시작.
     - 모든 stream에 addTrack() 함수가 붙혀져 있기 때문에 서버에서 이걸 바로 읽고 이에 대해 원하는 작업이 가능.
+    
 <br><br>  
 
 💡 **현재 프로젝트 WebRTC 구조**
