@@ -51,7 +51,6 @@ class poseDetector():
  
     def draw_count(self, img, draw, cnt):
         empty_img = np.zeros((512, 512, 3), np.uint8)
-
         imgRGB = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
         self.results = self.pose.process(imgRGB)
         if self.results.pose_landmarks:
