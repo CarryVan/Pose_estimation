@@ -41,6 +41,7 @@ class VideoTransformTrack(MediaStreamTrack):
         self.drop += 1
         frame = await self.track.recv()
         if self.drop % 4 == 0:
+            self.drop = 0
             if self.transform == "cartoon":
                 img = frame.to_ndarray(format="bgr24")
 
