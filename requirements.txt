@@ -1,0 +1,7 @@
+opencv-python
+mediapipe
+pandas
+aiohttp
+av
+aiortc
+sklearn
