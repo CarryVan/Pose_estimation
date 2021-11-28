@@ -15,7 +15,8 @@ class poseDetector():
                enable_segmentation=False,
                smooth_segmentation=True,
                min_detection_confidence=0.5,
-               min_tracking_confidence=0.5,):
+               min_tracking_confidence=0.5,
+               model_dir=None):
         
         self.static_image_mode = static_image_mode
         self.model_complexity = model_complexity
@@ -35,6 +36,8 @@ class poseDetector():
                                     self.min_detection_confidence,
                                     self.min_tracking_confidence)
         self.status = 'pushup_x'
+        with open(f'{model_dir}', 'rb') as f:
+            self.model = pickle.load(f)
 
 
     def findPose(self, img, draw=True):
@@ -46,10 +49,7 @@ class poseDetector():
                                            self.mpPose.POSE_CONNECTIONS)
         return img
  
-    def draw_count(self, img, model_dir, draw, cnt):
-
-        with open(f'{model_dir}', 'rb') as f:
-            model = pickle.load(f)
+    def draw_count(self, img, draw, cnt):
         empty_img = np.zeros((512, 512, 3), np.uint8)
 
         imgRGB = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
@@ -59,13 +59,12 @@ class poseDetector():
                 self.mpDraw.draw_landmarks(empty_img, self.results.pose_landmarks,
                                            self.mpPose.POSE_CONNECTIONS)
 
-        self.lmList = []
         try:
             landmarks = self.results.pose_landmarks.landmark
             pose_row = list(np.array([[landmark.x, landmark.y, landmark.z, landmark.visibility] for idx, landmark in enumerate(landmarks) if idx >= 10]).flatten())
             X = pd.DataFrame([pose_row])
-            body_language_class = model.predict(X)[0]
-            body_language_prob = model.predict_proba(X)[0]
+            body_language_class = self.model.predict(X)[0]
+            body_language_prob = self.model.predict_proba(X)[0]
 
             if self.status == 'pushup_d' and body_language_class == 'pushup_u':
                 cnt += 1

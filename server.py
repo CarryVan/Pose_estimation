@@ -32,7 +32,7 @@ class VideoTransformTrack(MediaStreamTrack):
         super().__init__()  # don't forget this!
         self.track = track
         self.transform = transform
-        self.detector = pm.poseDetector()
+        self.detector = pm.poseDetector(model_dir=args.model_dir)
         self.pTime = 0
         self.cnt = 0
     async def recv(self):
@@ -94,7 +94,7 @@ class VideoTransformTrack(MediaStreamTrack):
             
             #pose estimate
             img = frame.to_ndarray(format="bgr24")
-            img, blc, blp, cnt = self.detector.draw_count(img, args.model_dir, cnt=self.cnt, draw=True)
+            img, blc, blp, cnt = self.detector.draw_count(img, cnt=self.cnt, draw=True)
             self.cnt = cnt
             # rebuild a VideoFrame, preserving timing information
             cTime = time.time()
