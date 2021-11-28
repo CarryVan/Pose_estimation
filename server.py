@@ -94,10 +94,8 @@ class VideoTransformTrack(MediaStreamTrack):
             
             #pose estimate
             img = frame.to_ndarray(format="bgr24")
-            #img = self.detector.findPose(img, draw=True)
-    
             img, blc, blp, cnt = self.detector.draw_count(img, args.model_dir, cnt=self.cnt, draw=True)
-            self.cnt=cnt
+            self.cnt = cnt
             # rebuild a VideoFrame, preserving timing information
             cTime = time.time()
             fps = 1 / (cTime - self.pTime)
