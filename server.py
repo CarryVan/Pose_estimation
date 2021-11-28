@@ -35,87 +35,92 @@ class VideoTransformTrack(MediaStreamTrack):
         self.detector = pm.poseDetector(model_dir=args.model_dir)
         self.pTime = 0
         self.cnt = 0
+        self.drop = -1
+        self.before_frame = np.zeros((512, 512, 3), np.uint8)
     async def recv(self):
+        self.drop += 1
         frame = await self.track.recv()
+        if self.drop % 4 == 0:
+            if self.transform == "cartoon":
+                img = frame.to_ndarray(format="bgr24")
 
-        if self.transform == "cartoon":
-            img = frame.to_ndarray(format="bgr24")
+                # prepare color
+                img_color = cv2.pyrDown(cv2.pyrDown(img))
+                for _ in range(6):
+                    img_color = cv2.bilateralFilter(img_color, 9, 9, 7)
+                img_color = cv2.pyrUp(cv2.pyrUp(img_color))
 
-            # prepare color
-            img_color = cv2.pyrDown(cv2.pyrDown(img))
-            for _ in range(6):
-                img_color = cv2.bilateralFilter(img_color, 9, 9, 7)
-            img_color = cv2.pyrUp(cv2.pyrUp(img_color))
+                # prepare edges
+                img_edges = cv2.cvtColor(img, cv2.COLOR_RGB2GRAY)
+                img_edges = cv2.adaptiveThreshold(
+                    cv2.medianBlur(img_edges, 7),
+                    255,
+                    cv2.ADAPTIVE_THRESH_MEAN_C,
+                    cv2.THRESH_BINARY,
+                    9,
+                    2,
+                )
+                img_edges = cv2.cvtColor(img_edges, cv2.COLOR_GRAY2RGB)
 
-            # prepare edges
-            img_edges = cv2.cvtColor(img, cv2.COLOR_RGB2GRAY)
-            img_edges = cv2.adaptiveThreshold(
-                cv2.medianBlur(img_edges, 7),
-                255,
-                cv2.ADAPTIVE_THRESH_MEAN_C,
-                cv2.THRESH_BINARY,
-                9,
-                2,
-            )
-            img_edges = cv2.cvtColor(img_edges, cv2.COLOR_GRAY2RGB)
+                # combine color and edges
+                img = cv2.bitwise_and(img_color, img_edges)
 
-            # combine color and edges
-            img = cv2.bitwise_and(img_color, img_edges)
+                # rebuild a VideoFrame, preserving timing information
+                new_frame = VideoFrame.from_ndarray(img, format="bgr24")
+                new_frame.pts = frame.pts
+                new_frame.time_base = frame.time_base
+                return new_frame
+            elif self.transform == "edges":
+                # perform edge detection
+                img = frame.to_ndarray(format="bgr24")
+                img = cv2.cvtColor(cv2.Canny(img, 100, 200), cv2.COLOR_GRAY2BGR)
 
-            # rebuild a VideoFrame, preserving timing information
-            new_frame = VideoFrame.from_ndarray(img, format="bgr24")
-            new_frame.pts = frame.pts
-            new_frame.time_base = frame.time_base
-            return new_frame
-        elif self.transform == "edges":
-            # perform edge detection
-            img = frame.to_ndarray(format="bgr24")
-            img = cv2.cvtColor(cv2.Canny(img, 100, 200), cv2.COLOR_GRAY2BGR)
+                # rebuild a VideoFrame, preserving timing information
+                new_frame = VideoFrame.from_ndarray(img, format="bgr24")
+                new_frame.pts = frame.pts
+                new_frame.time_base = frame.time_base
+                return new_frame
+            elif self.transform == "rotate":
+                # rotate image
+                img = frame.to_ndarray(format="bgr24")
+                rows, cols, _ = img.shape
+                M = cv2.getRotationMatrix2D((cols / 2, rows / 2), frame.time * 45, 1)
+                img = cv2.warpAffine(img, M, (cols, rows))
 
-            # rebuild a VideoFrame, preserving timing information
-            new_frame = VideoFrame.from_ndarray(img, format="bgr24")
-            new_frame.pts = frame.pts
-            new_frame.time_base = frame.time_base
-            return new_frame
-        elif self.transform == "rotate":
-            # rotate image
-            img = frame.to_ndarray(format="bgr24")
-            rows, cols, _ = img.shape
-            M = cv2.getRotationMatrix2D((cols / 2, rows / 2), frame.time * 45, 1)
-            img = cv2.warpAffine(img, M, (cols, rows))
+                # rebuild a VideoFrame, preserving timing information
+                new_frame = VideoFrame.from_ndarray(img, format="bgr24")
+                new_frame.pts = frame.pts
+                new_frame.time_base = frame.time_base
+                return new_frame
 
-            # rebuild a VideoFrame, preserving timing information
-            new_frame = VideoFrame.from_ndarray(img, format="bgr24")
-            new_frame.pts = frame.pts
-            new_frame.time_base = frame.time_base
-            return new_frame
+            elif self.transform == "pose_estimation":
+                #pose estimate
+                img = frame.to_ndarray(format="bgr24")
+                img, blc, blp, cnt = self.detector.draw_count(img, cnt=self.cnt, draw=True)
+                self.cnt = cnt
+                # rebuild a VideoFrame, preserving timing information
+                cTime = time.time()
+                fps = 1 / (cTime - self.pTime)
+                self.pTime = cTime
+                cv2.putText(img, f"fps: {str(int(fps))}", (30, 100), cv2.FONT_HERSHEY_PLAIN, 5,
+                            (255, 0, 0), 2)
+                cv2.putText(img, blc, (30, 30), 
+                            cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2, cv2.LINE_AA)    
+                cv2.putText(img, str(round(blp[np.argmax(blp)],2)), (250, 30), 
+                                cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2, cv2.LINE_AA) 
+                cv2.putText(img, 'cnt: ' + str(cnt), (30, 150), 
+                            cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2, cv2.LINE_AA)
 
-        elif self.transform == "pose_estimation":
-            
-            #pose estimate
-            img = frame.to_ndarray(format="bgr24")
-            img, blc, blp, cnt = self.detector.draw_count(img, cnt=self.cnt, draw=True)
-            self.cnt = cnt
-            # rebuild a VideoFrame, preserving timing information
-            cTime = time.time()
-            fps = 1 / (cTime - self.pTime)
-            self.pTime = cTime
-            cv2.putText(img, f"fps: {str(int(fps))}", (30, 100), cv2.FONT_HERSHEY_PLAIN, 5,
-                        (255, 0, 0), 2)
-            cv2.putText(img, blc, (30, 30), 
-                        cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2, cv2.LINE_AA)    
-            cv2.putText(img, str(round(blp[np.argmax(blp)],2)), (250, 30), 
-                            cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2, cv2.LINE_AA) 
-            cv2.putText(img, 'cnt: ' + str(cnt), (30, 150), 
-                        cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2, cv2.LINE_AA)
-
-            new_frame = VideoFrame.from_ndarray(img, format="bgr24")
-            new_frame.pts = frame.pts
-            new_frame.time_base = frame.time_base
-            return new_frame
-            
+                new_frame = VideoFrame.from_ndarray(img, format="bgr24")
+                new_frame.pts = frame.pts
+                new_frame.time_base = frame.time_base
+                self.before_frame = new_frame
+                return new_frame
+                
+            else:
+                return frame
         else:
-            return frame
+            return self.before_frame
 
 
 async def index(request):
@@ -165,7 +170,6 @@ async def offer(request):
     @pc.on("track")
     def on_track(track):
         log_info("Track %s received", track.kind)
-
         if track.kind == "audio":
             pc.addTrack(player.audio)
             recorder.addTrack(track)
