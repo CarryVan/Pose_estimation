@@ -7,19 +7,32 @@ import ssl
 import uuid
 import time
 
+import uvicorn
+
 import cv2
 import pose_module as pm
-from aiohttp import web
 from av import VideoFrame
 import numpy as np
 
 from aiortc import MediaStreamTrack, RTCPeerConnection, RTCSessionDescription
 from aiortc.contrib.media import MediaBlackhole, MediaPlayer, MediaRecorder
 
+from fastapi import FastAPI, Request
+from fastapi.responses import HTMLResponse
+from fastapi.staticfiles import StaticFiles
+from fastapi.templating import Jinja2Templates
+
+from src.schemas import Offer
+
+
 ROOT = os.path.dirname(__file__)
 
+app = FastAPI()
+app.mount("/static", StaticFiles(directory="static"), name="static")
+templates = Jinja2Templates(directory="templates")
+
 logger = logging.getLogger("pc")
-pcs = set()
+#pcs = set()
 
 class VideoTransformTrack(MediaStreamTrack):
     """
@@ -118,19 +131,19 @@ class VideoTransformTrack(MediaStreamTrack):
             return frame
 
 
-async def index(request):
-    content = open(os.path.join(ROOT, "index.html"), "r").read()
-    return web.Response(content_type="text/html", text=content)
+@app.get("/", response_class=HTMLResponse)
+async def index(request: Request):
+    return templates.TemplateResponse("index.html", {"request": request})
 
 
-async def javascript(request):
-    content = open(os.path.join(ROOT, "client.js"), "r").read()
-    return web.Response(content_type="application/javascript", text=content)
+# async def javascript(request):
+#     content = open(os.path.join(ROOT, "client.js"), "r").read()
+#     return web.Response(content_type="application/javascript", text=content)
 
 
-async def offer(request):
-    params = await request.json()
-    offer = RTCSessionDescription(sdp=params["sdp"], type=params["type"])
+@app.post("/offer")
+async def offer(params: Offer):
+    offer = RTCSessionDescription(sdp=params.sdp, type=params.type)
 
     pc = RTCPeerConnection()
     pc_id = "PeerConnection(%s)" % uuid.uuid4()
@@ -139,7 +152,7 @@ async def offer(request):
     def log_info(msg, *args):
         logger.info(pc_id + " " + msg, *args)
 
-    log_info("Created for %s", request.remote)
+    #log_info("Created for %s", request.remote)
 
     # prepare local media
     player = MediaPlayer(os.path.join(ROOT, "workout_start.wav"))
@@ -171,7 +184,7 @@ async def offer(request):
             recorder.addTrack(track)
         elif track.kind == "video":
             local_video = VideoTransformTrack(
-                track, transform=params["video_transform"]
+                track, transform=params.video_transform
             )
             pc.addTrack(local_video)
 
@@ -188,14 +201,10 @@ async def offer(request):
     answer = await pc.createAnswer()
     await pc.setLocalDescription(answer)
 
-    return web.Response(
-        content_type="application/json",
-        text=json.dumps(
-            {"sdp": pc.localDescription.sdp, "type": pc.localDescription.type}
-        ),
-    )
+    return {"sdp": pc.localDescription.sdp, "type": pc.localDescription.type}
 
-
+#
+pcs = set()
 async def on_shutdown(app):
     # close peer connections
     coros = [pc.close() for pc in pcs]
@@ -233,11 +242,12 @@ if __name__ == "__main__":
     else:
         ssl_context = None
 
-    app = web.Application()
-    app.on_shutdown.append(on_shutdown)
-    app.router.add_get("/", index)
-    app.router.add_get("/client.js", javascript)
-    app.router.add_post("/offer", offer)
-    web.run_app(
-        app, access_log=None, host=args.host, port=args.port, ssl_context=ssl_context
-    )
+    uvicorn.run(app, host="0.0.0.0", port=args.port)
+    # app = web.Application()
+    # app.on_shutdown.append(on_shutdown)
+    # app.router.add_get("/", index)
+    # app.router.add_get("/client.js", javascript)
+    # app.router.add_post("/offer", offer)
+    # web.run_app(
+    #     app, access_log=None, host=args.host, port=args.port, ssl_context=ssl_context
+    # )
