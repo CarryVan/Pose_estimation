@@ -241,7 +241,7 @@ if __name__ == "__main__":
     else:
         ssl_context = None
 
-    uvicorn.run(app, host="0.0.0.0", port=args.port)
+    uvicorn.run(app, host="0.0.0.0", port=8080)
     # app = web.Application()
     # app.on_shutdown.append(on_shutdown)
     # app.router.add_get("/", index)
