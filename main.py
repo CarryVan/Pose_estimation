@@ -155,11 +155,10 @@ async def offer(params: Offer):
     #log_info("Created for %s", request.remote)
 
     # prepare local media
+    
     player = MediaPlayer(os.path.join(ROOT, "workout_start.wav"))
-    if args.write_audio:
-        recorder = MediaRecorder(args.write_audio)
-    else:
-        recorder = MediaBlackhole()
+   
+    recorder = MediaBlackhole()
 
     @pc.on("datachannel")
     def on_datachannel(channel):
@@ -228,7 +227,7 @@ if __name__ == "__main__":
         "--model_dir", type=str, default="./model/pushup_model/body_language_lr.pkl", help="Saved model directory"
     )
     parser.add_argument("--verbose", "-v", action="count")
-    parser.add_argument("--write-audio", help="Write received audio to a file")
+
     args = parser.parse_args()
 
     if args.verbose:
