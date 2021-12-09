@@ -104,7 +104,6 @@ function negotiate() {
 
 function start() {
     document.getElementById('start').style.display = 'none';
-
     pc = createPeerConnection();
 
     var time_start = null;
